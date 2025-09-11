@@ -47,3 +47,16 @@ body {
 input[type="radio"] {
   margin-right: 5px;
 }
+.possible-move {
+  outline: 3px solid #00ffff;
+  cursor: pointer;
+}
+#move-history {
+  font-family: monospace;
+  font-size: 14px;
+  background: #f0e6d2;
+  border: 1px solid #8B4513;
+  padding: 8px;
+  height: 150px;
+  overflow-y: auto;
+}

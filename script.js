@@ -359,3 +359,142 @@ function resetGame() {
 }
 
 window.onload = init;
+// Adicione no topo do script.js
+let moveHistory = [];
+let possibleMoves = [];
+
+// Função que converte coordenadas [row,col] para notação xadrez (e.g. 7,4 -> e1)
+function coordsToChessNotation(row, col) {
+  const files = ['a','b','c','d','e','f','g','h'];
+  return files[col] + (8 - row);
+}
+
+// Atualiza o histórico na tela
+function updateMoveHistory() {
+  const histDiv = document.getElementById('move-history');
+  histDiv.innerHTML = '';
+  for(let i = 0; i < moveHistory.length; i++) {
+    const move = moveHistory[i];
+    const moveNumber = Math.floor(i / 2) + 1;
+    if(i % 2 === 0) {
+      // Branco
+      histDiv.innerHTML += `<div><strong>${moveNumber}. Branco:</strong> ${move}</div>`;
+    } else {
+      // Preto
+      histDiv.innerHTML += `<div><strong>${moveNumber}. Preto:</strong> ${move}</div>`;
+    }
+  }
+  histDiv.scrollTop = histDiv.scrollHeight; // Auto scroll para baixo
+}
+
+// Atualiza renderBoard para mostrar possíveis movimentos
+function renderBoard() {
+  const container = document.getElementById('chessboard');
+  container.innerHTML = '';
+  for(let row=0; row<8; row++) {
+    for(let col=0; col<8; col++) {
+      let square = document.createElement('div');
+      square.classList.add('square');
+      if((row + col) % 2 === 0) {
+        square.classList.add('light');
+      } else {
+        square.classList.add('dark');
+      }
+      square.id = `sq-${row}-${col}`;
+      let piece = board[row][col];
+      if(piece) {
+        square.textContent = piecesUnicode[piece];
+        if(piece === piece.toUpperCase()) {
+          square.style.color = 'white';
+        } else {
+          square.style.color = 'black';
+        }
+      }
+
+      // Se essa casa está entre os possíveis movimentos, destaque
+      if(possibleMoves.some(m => m[0] === row && m[1] === col)) {
+        square.classList.add('possible-move');
+      }
+
+      square.addEventListener('click', () => onSquareClick(row, col));
+      container.appendChild(square);
+    }
+  }
+
+  updateStatus();
+  updateMoveHistory();
+}
+
+// Atualiza a lista de possíveis movimentos ao selecionar uma peça
+function updatePossibleMoves(row, col) {
+  possibleMoves = [];
+  for(let r=0; r<8; r++) {
+    for(let c=0; c<8; c++) {
+      if(canMove(row, col, r, c)) {
+        possibleMoves.push([r, c]);
+      }
+    }
+  }
+}
+
+// Atualiza onSquareClick para lidar com seleção e movimento com possíveis jogadas
+function onSquareClick(row, col) {
+  if(gameOver) return;
+
+  if(selected) {
+    // Se clicou em casa possível, move
+    if(possibleMoves.some(m => m[0] === row && m[1] === col)) {
+      // Salva jogada no histórico
+      const fromNotation = coordsToChessNotation(selected.row, selected.col);
+      const toNotation = coordsToChessNotation(row, col);
+      const player = turn === 'w' ? 'Branco' : 'Preto';
+      const moveStr = `${fromNotation} -> ${toNotation}`;
+
+      movePiece(selected.row, selected.col, row, col);
+      moveHistory.push(moveStr);
+
+      selected = null;
+      possibleMoves = [];
+      renderBoard();
+
+      if (!gameOver) {
+        if(mode === 'ai' && turn === 'b') {
+          setTimeout(() => {
+            aiMove();
+            renderBoard();
+          }, 500);
+        }
+      }
+    } else {
+      // Seleciona outra peça se for da vez e da mesma cor
+      if(isOwnPiece(row, col)) {
+        selected = {row, col};
+        updatePossibleMoves(row, col);
+      } else {
+        selected = null;
+        possibleMoves = [];
+      }
+      renderBoard();
+      if(selected) highlightSquare(selected.row, selected.col);
+    }
+  } else {
+    if(isOwnPiece(row, col)) {
+      selected = {row, col};
+      updatePossibleMoves(row, col);
+      renderBoard();
+      highlightSquare(row, col);
+    }
+  }
+}
+
+// Reseta jogo deve limpar histórico e possíveis jogadas também
+function resetGame() {
+  gameOver = false;
+  selected = null;
+  turn = 'w';
+  castlingRights = {wK:true, wQ:true, bK:true, bQ:true};
+  moveHistory = [];
+  possibleMoves = [];
+  initBoard();
+  renderBoard();
+}
