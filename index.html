@@ -1,27 +1,157 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Jogo de Xadrez</title>
-<link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <title>Jogo de Xadrez</title>
+  <style>
+    body {
+      background-color: #4682B4;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      color: white;
+    }
+
+    .container {
+      display: flex;
+      gap: 30px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 60px);
+      grid-template-rows: repeat(8, 60px);
+      border: 3px solid #000;
+    }
+
+    .cell {
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .dark {
+      background-color: #8B4513;
+    }
+
+    .light {
+      background-color: #F4A460;
+    }
+
+    .captured {
+      display: flex;
+      flex-direction: column;
+      color: white;
+    }
+
+    .captured .box {
+      background-color: rgba(255, 255, 255, 0.2);
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      min-height: 60px;
+      min-width: 120px;
+    }
+
+    .captured .box.white {
+      background-color: #fff;
+      color: black;
+    }
+
+    .captured .box.black {
+      background-color: #000;
+      color: white;
+    }
+  </style>
 </head>
 <body>
+  <h1>Jogo de Xadrez</h1>
+  <div class="container">
+    <div class="captured">
+      <div><strong>Peças Capturadas:</strong></div>
+      <div class="box white" id="captured-white"></div>
+      <div class="box black" id="captured-black"></div>
+    </div>
+    <div class="board" id="board"></div>
+  </div>
 
-<h1>Jogo de Xadrez</h1>
+  <script>
+    const board = document.getElementById("board");
+    const capturedWhite = document.getElementById("captured-white");
+    const capturedBlack = document.getElementById("captured-black");
 
-<div>
-  <label><input type="radio" name="mode" value="multiplayer" checked /> Multiplayer</label>
-  <label><input type="radio" name="mode" value="ai" /> Jogar contra IA</label>
-</div>
+    const initialBoard = [
+      ["♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"],
+      ["♟", "♟", "♟", "♟", "♟", "♟", "♟", "♟"],
+      ["", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "", "", ""],
+      ["♙", "♙", "♙", "♙", "♙", "♙", "♙", "♙"],
+      ["♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"]
+    ];
 
-<div id="chessboard"></div>
+    let selectedCell = null;
 
-<div id="status"></div>
+    function renderBoard() {
+      board.innerHTML = "";
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const cell = document.createElement("div");
+          cell.classList.add("cell");
+          const isDark = (row + col) % 2 === 1;
+          cell.classList.add(isDark ? "dark" : "light");
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+          cell.textContent = initialBoard[row][col];
+          cell.addEventListener("click", () => handleCellClick(row, col));
+          board.appendChild(cell);
+        }
+      }
+    }
 
-<div id="status"></div>
-<div id="move-history" style="max-width:480px; margin: 0 auto; text-align:left;"></div>
+    function handleCellClick(row, col) {
+      const piece = initialBoard[row][col];
+      if (selectedCell) {
+        const [prevRow, prevCol] = selectedCell;
+        const selectedPiece = initialBoard[prevRow][prevCol];
 
-<script src="script.js"></script>
+        if (selectedPiece && (prevRow !== row || prevCol !== col)) {
+          const captured = initialBoard[row][col];
+
+          // Captura
+          if (captured) {
+            const isWhite = /♙|♖|♘|♗|♕|♔/.test(captured);
+            const container = isWhite ? capturedWhite : capturedBlack;
+            container.textContent += captured + " ";
+          }
+
+          initialBoard[row][col] = selectedPiece;
+          initialBoard[prevRow][prevCol] = "";
+          selectedCell = null;
+          renderBoard();
+        } else {
+          selectedCell = null;
+        }
+      } else {
+        if (piece) {
+          selectedCell = [row, col];
+        }
+      }
+    }
+
+    renderBoard();
+  </script>
 </body>
 </html>
