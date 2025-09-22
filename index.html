@@ -1,36 +1,37 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Jogo de Xadrez com Regras Completas</title>
+  <title>Jogo de Xadrez</title>
   <style>
     body {
       background-color: #4682B4;
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      font-family: Arial, sans-serif;
+      color: white;
+      margin: 0;
+      padding: 20px;
     }
+
     h1 {
-      color: white;
-    }
-    #turn-display {
-      color: white;
-      font-size: 18px;
       margin-bottom: 10px;
     }
-    .container {
+
+    .scoreboard {
       display: flex;
-      gap: 30px;
+      gap: 50px;
+      margin-bottom: 20px;
     }
+
     .board {
       display: grid;
       grid-template-columns: repeat(8, 60px);
       grid-template-rows: repeat(8, 60px);
       border: 3px solid #000;
     }
+
     .cell {
       width: 60px;
       height: 60px;
@@ -39,550 +40,198 @@
       justify-content: center;
       font-size: 36px;
       cursor: pointer;
-      user-select: none;
       position: relative;
     }
-    .dark {
-      background-color: #8B4513;
-    }
+
     .light {
       background-color: #F4A460;
     }
+
+    .dark {
+      background-color: #A0522D;
+    }
+
     .highlight {
-      box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.7);
+      outline: 3px solid yellow;
     }
-    .captured {
-      display: flex;
-      flex-direction: column;
-      color: white;
-    }
-    .captured .box {
-      padding: 10px;
-      border-radius: 5px;
-      margin-bottom: 20px;
-      min-height: 60px;
-      min-width: 120px;
-    }
-    .captured .box.white {
-      background-color: #F8F8FF;
-      color: black;
-    }
-    .captured .box.black {
-      background-color: #000;
-      color: white;
-    }
-    .piece {
-      z-index: 2;
-    }
-    .white-piece {
-      color: #F8F8FF;
-    }
-    .black-piece {
-      color: #000000;
-    }
-    #status {
-      margin-top: 10px;
-      color: yellow;
-      font-size: 20px;
+
+    .score {
+      font-size: 18px;
     }
   </style>
 </head>
 <body>
   <h1>Jogo de Xadrez</h1>
-  <div id="turn-display">Vez das Brancas</div>
-  <div class="container">
-    <div class="captured">
-      <div><strong>Peças Capturadas:</strong></div>
-      <div class="box white" id="captured-white"></div>
-      <div class="box black" id="captured-black"></div>
-    </div>
-    <div class="board" id="board"></div>
+  <div class="scoreboard">
+    <div id="white-score" class="score">Brancas: 0</div>
+    <div id="black-score" class="score">Pretas: 0</div>
   </div>
-  <div id="status"></div>
+  <div class="board" id="board"></div>
 
   <script>
-    const boardElem = document.getElementById("board");
-    const capturedWhiteElem = document.getElementById("captured-white");
-    const capturedBlackElem = document.getElementById("captured-black");
-    const turnDisplay = document.getElementById("turn-display");
-    const statusElem = document.getElementById("status");
+    const boardElement = document.getElementById('board');
+    const whiteScoreEl = document.getElementById('white-score');
+    const blackScoreEl = document.getElementById('black-score');
 
-    let board = [];
-    let currentTurn = 'white';
+    // Valores das peças
+    const pieceValues = {
+      p: 1,
+      r: 5,
+      n: 3,
+      b: 3,
+      q: 9,
+      k: 0
+    };
+
+    let whiteScore = 0;
+    let blackScore = 0;
+
+    // Unicode das peças
+    const pieces = {
+      'r': '♜',
+      'n': '♞',
+      'b': '♝',
+      'q': '♛',
+      'k': '♚',
+      'p': '♟',
+      'R': '♖',
+      'N': '♘',
+      'B': '♗',
+      'Q': '♕',
+      'K': '♔',
+      'P': '♙'
+    };
+
+    let board = [
+      ['r','n','b','q','k','b','n','r'],
+      ['p','p','p','p','p','p','p','p'],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['P','P','P','P','P','P','P','P'],
+      ['R','N','B','Q','K','B','N','R']
+    ];
+
     let selected = null;
-    let possibleMoves = [];
-
-    // informações sobre apeadido se rei/torre moveram (para roque)
-    let whiteKingMoved = false;
-    let blackKingMoved = false;
-    let whiteKingsideRookMoved = false;
-    let whiteQueensideRookMoved = false;
-    let blackKingsideRookMoved = false;
-    let blackQueensideRookMoved = false;
-
-    function initBoard() {
-      board = [
-        [
-          { type: 'r', color: 'black' },
-          { type: 'n', color: 'black' },
-          { type: 'b', color: 'black' },
-          { type: 'q', color: 'black' },
-          { type: 'k', color: 'black' },
-          { type: 'b', color: 'black' },
-          { type: 'n', color: 'black' },
-          { type: 'r', color: 'black' }
-        ],
-        Array(8).fill(null).map(() => ({ type: 'p', color: 'black' })),
-        ...Array(4).fill(null).map(() => Array(8).fill(null)),
-        Array(8).fill(null).map(() => ({ type: 'P', color: 'white' })),
-        [
-          { type: 'R', color: 'white' },
-          { type: 'N', color: 'white' },
-          { type: 'B', color: 'white' },
-          { type: 'Q', color: 'white' },
-          { type: 'K', color: 'white' },
-          { type: 'B', color: 'white' },
-          { type: 'N', color: 'white' },
-          { type: 'R', color: 'white' }
-        ]
-      ];
-
-      // reset movimentos especiais
-      whiteKingMoved = false;
-      blackKingMoved = false;
-      whiteKingsideRookMoved = false;
-      whiteQueensideRookMoved = false;
-      blackKingsideRookMoved = false;
-      blackQueensideRookMoved = false;
-    }
-
-    function inBounds(r, c) {
-      return r >= 0 && r < 8 && c >= 0 && c < 8;
-    }
-
-    function pieceSymbol(piece) {
-      const map = {
-        'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
-        'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'
-      };
-      return map[piece.type];
-    }
 
     function isWhite(piece) {
-      return piece && piece.color === 'white';
-    }
-    function isBlack(piece) {
-      return piece && piece.color === 'black';
-    }
-    function isOpponent(piece, color) {
-      return piece && piece.color !== color;
+      return piece === piece.toUpperCase();
     }
 
-    function cloneBoard(b) {
-      return b.map(r => r.map(cell => cell ? { type: cell.type, color: cell.color } : null));
+    function renderBoard() {
+      boardElement.innerHTML = '';
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+          cell.classList.add((row + col) % 2 === 0 ? 'light' : 'dark');
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+
+          const piece = board[row][col];
+          if (piece) {
+            cell.textContent = pieces[piece];
+          }
+
+          cell.addEventListener('click', () => onCellClick(row, col));
+          boardElement.appendChild(cell);
+        }
+      }
+
+      if (selected) {
+        highlightMoves(selected.row, selected.col);
+      }
     }
 
-    // Verifica se uma casa (row, col) está sob ataque pelo lado adversário
-    function isSquareAttacked(b, row, col, attackerColor) {
-      // gerar todos ataques do adversário e ver se algum ataca esse square
-      // variações: peões, cavalo, bispo/torre/rainha, rei
-      // peões:
-      const dirPawn = attackerColor === 'white' ? -1 : +1;
-      // peões atacam diagonais
-      for (let dc of [-1, +1]) {
-        const rr = row + dirPawn;
-        const cc = col + dc;
-        if (inBounds(rr, cc)) {
-          const p = b[rr][cc];
-          if (p && p.type.toUpperCase() === 'P' && p.color === attackerColor) return true;
+    function onCellClick(row, col) {
+      const piece = board[row][col];
+
+      if (selected) {
+        const fromRow = selected.row;
+        const fromCol = selected.col;
+        const selectedPiece = board[fromRow][fromCol];
+
+        if ((fromRow !== row || fromCol !== col) && isValidMove(fromRow, fromCol, row, col)) {
+          // Captura
+          const target = board[row][col];
+          if (target) {
+            const value = pieceValues[target.toLowerCase()] || 0;
+            if (isWhite(selectedPiece)) {
+              whiteScore += value;
+              whiteScoreEl.textContent = `Brancas: ${whiteScore}`;
+            } else {
+              blackScore += value;
+              blackScoreEl.textContent = `Pretas: ${blackScore}`;
+            }
+          }
+
+          board[row][col] = selectedPiece;
+          board[fromRow][fromCol] = '';
+        }
+
+        selected = null;
+        renderBoard();
+      } else {
+        if (piece) {
+          selected = { row, col };
+          renderBoard();
         }
       }
-      // cavalos
-      const knightMoves = [
-        [2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]
-      ];
-      for (let [dr, dc] of knightMoves) {
-        const rr = row + dr, cc = col + dc;
-        if (inBounds(rr, cc)) {
-          const p = b[rr][cc];
-          if (p && (p.type.toUpperCase() === 'N') && p.color === attackerColor) return true;
-        }
-      }
-      // bispo / rainha / torre
+    }
+
+    function highlightMoves(row, col) {
+      const cells = document.querySelectorAll('.cell');
+      const currentPiece = board[row][col];
       const directions = [
-        [1,0],[-1,0],[0,1],[0,-1], [1,1],[1,-1],[-1,1],[-1,-1]
+        [-1, 0], [1, 0], [0, -1], [0, 1],
+        [-1, -1], [-1, 1], [1, -1], [1, 1]
       ];
-      for (let [dr, dc] of directions) {
-        let rr = row + dr, cc = col + dc;
-        while (inBounds(rr, cc)) {
-          const p = b[rr][cc];
-          if (p) {
-            if (p.color === attackerColor) {
-              const t = p.type.toUpperCase();
-              // se direção ortogonal
-              if ((dr === 0 || dc === 0) && (t === 'R' || t === 'Q')) return true;
-              // se direção diagonal
-              if ((dr !== 0 && dc !== 0) && (t === 'B' || t === 'Q')) return true;
-            }
-            // bloqueado
-            break;
-          }
-          rr += dr;
-          cc += dc;
+
+      cells.forEach(cell => {
+        const r = parseInt(cell.dataset.row);
+        const c = parseInt(cell.dataset.col);
+
+        if ((r !== row || c !== col) && isValidMove(row, col, r, c)) {
+          cell.classList.add('highlight');
         }
-      }
-      // rei adjacente (para ver se rei adversário ameaça)
-      const kingMoves = [
-        [1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]
-      ];
-      for (let [dr, dc] of kingMoves) {
-        const rr = row + dr, cc = col + dc;
-        if (inBounds(rr, cc)) {
-          const p = b[rr][cc];
-          if (p && (p.type.toUpperCase() === 'K') && p.color === attackerColor) return true;
-        }
-      }
-      return false;
+      });
     }
 
-    function findKingPosition(b, color) {
-      for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-          const p = b[r][c];
-          if (p && p.type.toUpperCase() === 'K' && p.color === color) {
-            return { row: r, col: c };
-          }
-        }
-      }
-      return null;
-    }
-
-    function inCheck(b, color) {
-      const kingPos = findKingPosition(b, color);
-      if (!kingPos) return false; // deveria não acontecer
-      return isSquareAttacked(b, kingPos.row, kingPos.col, color === 'white' ? 'black' : 'white');
-    }
-
-    function calculateMoves(row, col, b) {
-      const piece = b[row][col];
-      if (!piece) return [];
-      const moves = [];
-      const color = piece.color;
-      const oppColor = color === 'white' ? 'black' : 'white';
-      const dirPawn = color === 'white' ? -1 : +1;
-
-      function addMove(r,c) {
-        if (!inBounds(r,c)) return;
-        const target = b[r][c];
-        if (!target || target.color !== color) {
-          // simular movimento e verificar que rei não ficará em xeque
-          const b2 = cloneBoard(b);
-          b2[r][c] = { type: piece.type, color: piece.color };
-          b2[row][col] = null;
-          if (!inCheck(b2, color)) {
-            moves.push({ row: r, col: c });
-          }
-        }
-      }
-
-      switch (piece.type.toUpperCase()) {
-        case 'P':
-          // avanço simples
-          if (inBounds(row + dirPawn, col) && !b[row + dirPawn][col]) {
-            addMove(row + dirPawn, col);
-            // avanço duplo
-            const startRow = color === 'white' ? 6 : 1;
-            if (row === startRow && !b[row + 2*dirPawn][col]) {
-              addMove(row + 2*dirPawn, col);
-            }
-          }
-          // capturas
-          for (let dc of [-1, +1]) {
-            const rr = row + dirPawn, cc = col + dc;
-            if (inBounds(rr, cc)) {
-              const target = b[rr][cc];
-              if (target && target.color === oppColor) {
-                addMove(rr, cc);
-              }
-            }
-          }
-          break;
-        case 'R':
-        case 'r':
-          moves.push(...slidingMoves(row, col, b, color, [[1,0],[-1,0],[0,1],[0,-1]]));
-          break;
-        case 'B':
-        case 'b':
-          moves.push(...slidingMoves(row, col, b, color, [[1,1],[1,-1],[-1,1],[-1,-1]]));
-          break;
-        case 'Q':
-        case 'q':
-          moves.push(...slidingMoves(row, col, b, color, [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]));
-          break;
-        case 'N':
-        case 'n':
-          const knightMoves = [
-            [2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]
-          ];
-          for (let [dr, dc] of knightMoves) {
-            const rr = row + dr, cc = col + dc;
-            if (inBounds(rr, cc) && (!b[rr][cc] || b[rr][cc].color !== color)) {
-              // simular para evitar rei em xeque
-              const b2 = cloneBoard(b);
-              b2[rr][cc] = { type: piece.type, color: piece.color };
-              b2[row][col] = null;
-              if (!inCheck(b2, color)) {
-                moves.push({ row: rr, col: cc });
-              }
-            }
-          }
-          break;
-        case 'K':
-        case 'k':
-          const kingMoves = [
-            [1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]
-          ];
-          for (let [dr, dc] of kingMoves) {
-            const rr = row + dr, cc = col + dc;
-            if (inBounds(rr, cc) && (!b[rr][cc] || b[rr][cc].color !== color)) {
-              const b2 = cloneBoard(b);
-              b2[rr][cc] = { type: piece.type, color: piece.color };
-              b2[row][col] = null;
-              if (!inCheck(b2, color)) {
-                moves.push({ row: rr, col: cc });
-              }
-            }
-          }
-          // Roque
-          if (! (color === 'white' ? whiteKingMoved : blackKingMoved)) {
-            // rei não se moveu
-            const row0 = color === 'white' ? 7 : 0;
-            // roque rei (lado direito)
-            if (! (color === 'white' ? whiteKingsideRookMoved : blackKingsideRookMoved)) {
-              // torre do lado direito não se moveu
-              if (
-                !b[row0][col+1] && !b[row0][col+2]
-                && !isSquareAttacked(b, row0, col, oppColor)
-                && !isSquareAttacked(b, row0, col+1, oppColor)
-                && !isSquareAttacked(b, row0, col+2, oppColor)
-              ) {
-                const rook = b[row0][col+3];
-                if (rook && rook.type.toUpperCase() === 'R' && rook.color === color) {
-                  // sim, torre está lá
-                  moves.push({ row: row0, col: col+2 });
-                }
-              }
-            }
-            // roque dama (lado esquerdo)
-            if (! (color === 'white' ? whiteQueensideRookMoved : blackQueensideRookMoved)) {
-              if (
-                !b[row0][col-1] && !b[row0][col-2] && !b[row0][col-3]
-                && !isSquareAttacked(b, row0, col, oppColor)
-                && !isSquareAttacked(b, row0, col-1, oppColor)
-                && !isSquareAttacked(b, row0, col-2, oppColor)
-              ) {
-                const rook = b[row0][col-4];
-                if (rook && rook.type.toUpperCase() === 'R' && rook.color === color) {
-                  moves.push({ row: row0, col: col-2 });
-                }
-              }
-            }
-          }
-          break;
-      }
-      return moves;
-    }
-
-    function slidingMoves(row, col, b, color, directions) {
-      const moves = [];
-      const oppColor = color === 'white' ? 'black' : 'white';
-      for (let [dr, dc] of directions) {
-        let rr = row + dr, cc = col + dc;
-        while (inBounds(rr, cc)) {
-          const target = b[rr][cc];
-          if (!target) {
-            // vazio
-            // simular
-            const b2 = cloneBoard(b);
-            b2[rr][cc] = { type: b[row][col].type, color: color };
-            b2[row][col] = null;
-            if (!inCheck(b2, color)) {
-              moves.push({ row: rr, col: cc });
-            }
-          } else {
-            if (target.color !== color) {
-              const b2 = cloneBoard(b);
-              b2[rr][cc] = { type: b[row][col].type, color: color };
-              b2[row][col] = null;
-              if (!inCheck(b2, color)) {
-                moves.push({ row: rr, col: cc });
-              }
-            }
-            break;
-          }
-          rr += dr;
-          cc += dc;
-        }
-      }
-      return moves;
-    }
-
-    function findAnyLegalMove(color) {
-      // vai por todas peças da cor, calcular movimentos, retornar true se achar ao menos um
-      for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-          const p = board[r][c];
-          if (p && p.color === color) {
-            const moves = calculateMoves(r, c, board);
-            if (moves.length > 0) return true;
-          }
-        }
-      }
-      return false;
-    }
-
-    function makeMove(fromRow, fromCol, toRow, toCol) {
+    function isValidMove(fromRow, fromCol, toRow, toCol) {
       const piece = board[fromRow][fromCol];
       const target = board[toRow][toCol];
 
-      // captura
-      if (target) {
-        if (target.color === 'white') {
-          capturedWhiteElem.textContent += pieceSymbol(target) + " ";
-        } else {
-          capturedBlackElem.textContent += pieceSymbol(target) + " ";
-        }
-      }
+      // Não permitir capturar a própria peça
+      if (target && isWhite(piece) === isWhite(target)) return false;
 
-      // se mover rei ou torre, marcar que se moveram (para roque)
-      if (piece.type === 'K') whiteKingMoved = true;
-      if (piece.type === 'k') blackKingMoved = true;
-      if (piece.type === 'R' && fromRow === 7 && fromCol === 7) whiteKingsideRookMoved = true;
-      if (piece.type === 'R' && fromRow === 7 && fromCol === 0) whiteQueensideRookMoved = true;
-      if (piece.type === 'r' && fromRow === 0 && fromCol === 7) blackKingsideRookMoved = true;
-      if (piece.type === 'r' && fromRow === 0 && fromCol === 0) blackQueensideRookMoved = true;
+      // Apenas movimentos básicos (sem regras completas)
+      const dx = toCol - fromCol;
+      const dy = toRow - fromRow;
 
-      // promoção
-      if (piece.type === 'P' && toRow === 0) {
-        piece.type = 'Q';
-      }
-      if (piece.type === 'p' && toRow === 7) {
-        piece.type = 'q';
-      }
+      const p = piece.toLowerCase();
 
-      // mover
-      board[toRow][toCol] = piece;
-      board[fromRow][fromCol] = null;
-
-      // roque
-      // se rei fez movimento de roque
-      if (piece.type === 'K' && fromCol === 4 && toCol === 6) {
-        // branca pequeno roque
-        board[7][5] = board[7][7];
-        board[7][7] = null;
+      switch (p) {
+        case 'p':
+          const dir = isWhite(piece) ? -1 : 1;
+          if (dx === 0 && !target && dy === dir) return true;
+          if (Math.abs(dx) === 1 && dy === dir && target) return true;
+          break;
+        case 'r':
+          return (dx === 0 || dy === 0);
+        case 'n':
+          return (Math.abs(dx) === 2 && Math.abs(dy) === 1) || (Math.abs(dx) === 1 && Math.abs(dy) === 2);
+        case 'b':
+          return Math.abs(dx) === Math.abs(dy);
+        case 'q':
+          return (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy));
+        case 'k':
+          return Math.abs(dx) <= 1 && Math.abs(dy) <= 1;
       }
-      if (piece.type === 'K' && fromCol === 4 && toCol === 2) {
-        // branca grande roque
-        board[7][3] = board[7][0];
-        board[7][0] = null;
-      }
-      if (piece.type === 'k' && fromCol === 4 && toCol === 6) {
-        board[0][5] = board[0][7];
-        board[0][7] = null;
-      }
-      if (piece.type === 'k' && fromCol === 4 && toCol === 2) {
-        board[0][3] = board[0][0];
-        board[0][0] = null;
-      }
-
-      // trocar turno
-      currentTurn = currentTurn === 'white' ? 'black' : 'white';
+      return false;
     }
 
-    function handleClick(row, col) {
-      const cellPiece = board[row][col];
-      // se selecionado
-      if (selected) {
-        const move = possibleMoves.find(m => m.row === row && m.col === col);
-        if (move) {
-          makeMove(selected.row, selected.col, row, col);
-          selected = null;
-          possibleMoves = [];
-          checkGameState();
-          render();
-        } else {
-          if (cellPiece && cellPiece.color === currentTurn) {
-            selected = { row, col };
-            possibleMoves = calculateMoves(row, col, board);
-            render();
-          } else {
-            selected = null;
-            possibleMoves = [];
-            render();
-          }
-        }
-      } else {
-        if (cellPiece && cellPiece.color === currentTurn) {
-          selected = { row, col };
-          possibleMoves = calculateMoves(row, col, board);
-          render();
-        }
-      }
-    }
-
-    function checkGameState() {
-      if (inCheck(board, currentTurn)) {
-        // rei está em xeque
-        if (!findAnyLegalMove(currentTurn)) {
-          // xeque-mate
-          statusElem.textContent = currentTurn === 'white'
-            ? "Xeque‑mate! Pretas vencem!"
-            : "Xeque‑mate! Brancas vencem!";
-        } else {
-          statusElem.textContent = "Xeque!";
-        }
-      } else {
-        // não está em xeque
-        if (!findAnyLegalMove(currentTurn)) {
-          // empate por stalemate
-          statusElem.textContent = "Empate (Stalemate)!";
-        } else {
-          statusElem.textContent = "";
-        }
-      }
-    }
-
-    function render() {
-      boardElem.innerHTML = '';
-      for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-          const cell = document.createElement('div');
-          cell.classList.add('cell');
-          cell.classList.add((r + c) % 2 === 1 ? 'dark' : 'light');
-          cell.dataset.row = r;
-          cell.dataset.col = c;
-          const piece = board[r][c];
-          if (piece) {
-            const span = document.createElement('span');
-            span.classList.add('piece');
-            span.textContent = pieceSymbol(piece);
-            if (piece.color === 'white') span.classList.add('white‑piece');
-            else span.classList.add('black‑piece');
-            cell.appendChild(span);
-          }
-          if (possibleMoves.some(m => m.row === r && m.col === c)) {
-            cell.classList.add('highlight');
-          }
-          cell.addEventListener('click', () => handleClick(r, c));
-          boardElem.appendChild(cell);
-        }
-      }
-      turnDisplay.textContent = currentTurn === 'white' ? 'Vez das Brancas' : 'Vez das Pretas';
-    }
-
-    // inicialização
-    initBoard();
-    render();
+    renderBoard();
   </script>
 </body>
 </html>
