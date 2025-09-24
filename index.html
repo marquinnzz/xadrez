@@ -22,30 +22,31 @@
         }
         .tabuleiro {
             display: grid;
-            grid-template-columns: repeat(8, 50px);
-            grid-template-rows: repeat(8, 50px);
+            grid-template-columns: repeat(8, 70px);
+            grid-template-rows: repeat(8, 70px);
             border: 2px solid #333;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
         .casa {
-            width: 50px;
-            height: 50px;
+            width: 70px;
+            height: 70px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 30px;
+            font-size: 50px;
             cursor: pointer;
             position: relative;
         }
         .clara { background-color: #f0d9b5; }
         .escura { background-color: #b58863; }
         .selecionada { background-color: #ffcc00 !important; }
+        .xeque { background-color: #FF0000 !important; }
         .peca.branca { color: #FFFFFF; text-shadow: 1px 1px 2px #000; }
         .peca.preta { color: #333333; }
         .guia-movimento {
             position: absolute;
-            width: 15px;
-            height: 15px;
+            width: 20px;
+            height: 20px;
             background-color: green;
             border-radius: 50%;
             pointer-events: none;
@@ -101,6 +102,7 @@
         let turno;
         let pecaSelecionada;
         let modoDeJogo = 'amigo';
+        let jogoTerminado = false;
 
         function definirModo(modo) {
             modoDeJogo = modo;
@@ -120,6 +122,7 @@
             ];
             turno = 'branco';
             pecaSelecionada = null;
+            jogoTerminado = false;
             mensagemEl.textContent = 'É a vez das Brancas';
             renderizarTabuleiro();
         }
@@ -150,6 +153,11 @@
             if (pecaSelecionada) {
                 mostrarMovimentosValidos(pecaSelecionada[0], pecaSelecionada[1]);
             }
+            if (estaEmXeque(turno)) {
+                const [reiL, reiC] = obterPosicaoRei(turno);
+                const casaRei = document.querySelector(`.casa[data-linha="${reiL}"][data-coluna="${reiC}"]`);
+                casaRei.classList.add('xeque');
+            }
         }
 
         function mostrarMovimentosValidos(linha, coluna) {
@@ -167,6 +175,7 @@
         }
 
         function handleClick(linha, coluna) {
+            if (jogoTerminado) return;
             const pecaNaCasa = tabuleiro[linha][coluna];
 
             if (pecaSelecionada) {
@@ -193,7 +202,7 @@
                 }
             }
         }
-        
+
         // --- Lógica da IA ---
         function moverIA() {
             const { melhorMovimento, melhorScore } = minimax(tabuleiro, 2, -Infinity, Infinity, true);
@@ -202,8 +211,8 @@
                 tabuleiro[to.linha][to.coluna] = tabuleiro[from.linha][from.coluna];
                 tabuleiro[from.linha][from.coluna] = '';
                 trocarTurno();
-                renderizarTabuleiro();
             }
+            renderizarTabuleiro();
         }
 
         function minimax(tabuleiro, profundidade, alpha, beta, maximizando) {
@@ -227,7 +236,7 @@
                     if (beta <= alpha) break;
                 }
                 return { melhorScore, melhorMovimento };
-            } else { // minimizando
+            } else {
                 let melhorScore = Infinity;
                 let melhorMovimento = null;
                 for (const mov of movimentosPossiveis) {
@@ -252,9 +261,9 @@
                     if (peca) {
                         const valor = pecasValor[peca.toLowerCase()] || 0;
                         if (peca === peca.toUpperCase()) {
-                            pontuacao -= valor; // Pontuação negativa para peças brancas (minimizador)
+                            pontuacao -= valor;
                         } else {
-                            pontuacao += valor; // Pontuação positiva para peças pretas (maximizador)
+                            pontuacao += valor;
                         }
                     }
                 }
@@ -309,15 +318,67 @@
                 default: return false;
             }
         }
+
+        // Funções de verificação de xeque
+        function obterPosicaoRei(cor) {
+            const reiPeca = cor === 'branco' ? 'K' : 'k';
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (tabuleiro[i][j] === reiPeca) {
+                        return [i, j];
+                    }
+                }
+            }
+        }
         
+        function estaEmXeque(cor) {
+            const [reiL, reiC] = obterPosicaoRei(cor);
+            const corInimiga = cor === 'branco' ? 'preto' : 'branco';
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const peca = tabuleiro[i][j];
+                    if (peca && ((corInimiga === 'branco' && peca === peca.toUpperCase()) || (corInimiga === 'preto' && peca === peca.toLowerCase()))) {
+                        if (movimentoValido(peca, i, j, reiL, reiC)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function verificarXequeMate(cor) {
+            if (!estaEmXeque(cor)) return false;
+
+            const movimentosPossiveis = obterTodosMovimentos(tabuleiro, cor);
+            for (const mov of movimentosPossiveis) {
+                const tempTab = fazerMovimento(tabuleiro, mov);
+                const tempTurno = cor;
+                if (!estaEmXeque(tempTurno, tempTab)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        function trocarTurno() {
+            turno = turno === 'branco' ? 'preto' : 'branco';
+            const corAtual = turno === 'branco' ? 'Brancas' : 'Pretas';
+            mensagemEl.textContent = `É a vez das ${corAtual}`;
+            if (verificarXequeMate(turno)) {
+                jogoTerminado = true;
+                mensagemEl.textContent = `Xeque-Mate! ${corAtual} perderam!`;
+            }
+        }
+        
+        // Funções de movimento para cada peça
+        // (mantive o mesmo código das funções de movimento anteriores)
         function movimentoPeao(peca, oL, oC, dL, dC) {
             const direcao = (peca === peca.toUpperCase()) ? -1 : 1;
             const linhaInicial = (peca === peca.toUpperCase()) ? 6 : 1;
-            
             if (oL + direcao === dL && oC === dC && tabuleiro[dL][dC] === '') return true;
             if (oL === linhaInicial && oL + 2 * direcao === dL && oC === dC && tabuleiro[dL][dC] === '' && tabuleiro[oL + direcao][oC] === '') return true;
             if (oL + direcao === dL && Math.abs(oC - dC) === 1 && tabuleiro[dL][dC] !== '') return true;
-            
             return false;
         }
 
@@ -367,11 +428,6 @@
             const deltaL = Math.abs(dL - oL);
             const deltaC = Math.abs(dC - oC);
             return (deltaL <= 1 && deltaC <= 1);
-        }
-
-        function trocarTurno() {
-            turno = turno === 'branco' ? 'preto' : 'branco';
-            mensagemEl.textContent = `É a vez das ${turno === 'branco' ? 'Brancas' : 'Pretas'}`;
         }
 
         reiniciarJogo();
