@@ -39,12 +39,14 @@ function selecionarCasa(event) {
     if (casa === casaSelecionada) {
       casaSelecionada.classList.remove('selecionada');
       casaSelecionada = null;
+      removerGuias();
     } else {
       moverPeca(casa);
     }
   } else if (casa.dataset.peca) {
     casaSelecionada = casa;
     casa.classList.add('selecionada');
+    mostrarGuias(casa);
   }
 }
 
@@ -56,6 +58,28 @@ function moverPeca(casaDestino) {
   casaSelecionada.textContent = '';
   casaSelecionada.classList.remove('selecionada');
   casaSelecionada = null;
+  removerGuias();
+}
+
+function mostrarGuias(casa) {
+  const movimentosPossiveis = calcularMovimentosPossiveis(casa);
+  movimentosPossiveis.forEach(posicao => {
+    const casaDestino = tabuleiro.children[posicao];
+    const guia = document.createElement('div');
+    guia.classList.add('guia');
+    casaDestino.appendChild(guia);
+  });
+}
+
+function removerGuias() {
+  const guias = tabuleiro.querySelectorAll('.guia');
+  guias.forEach(guia => guia.remove());
+}
+
+function calcularMovimentosPossiveis(casa) {
+  // Lógica para calcular os movimentos possíveis da peça selecionada
+  // Retorne um array com as posições das casas de destino válidas
+  return [];
 }
 
 criarTabuleiro();
