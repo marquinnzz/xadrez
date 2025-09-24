@@ -13,7 +13,7 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            background-color: #f4f4f4;
+            background-color: #4682B4;
         }
         .container {
             display: flex;
@@ -48,13 +48,15 @@
             height: 15px;
             background-color: green;
             border-radius: 50%;
-            pointer-events: none; /* Permite o clique na casa, não na bolinha */
+            pointer-events: none;
         }
         
         #mensagem {
             margin: 20px 0;
             font-size: 1.2em;
             font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px #000;
         }
         .opcoes-jogo {
             margin-bottom: 20px;
@@ -93,10 +95,12 @@
             'R': '&#9814;', 'N': '&#9816;', 'B': '&#9815;', 'Q': '&#9813;', 'K': '&#9812;', 'P': '&#9817;'
         };
 
+        const pecasValor = { 'p': 10, 'r': 50, 'n': 30, 'b': 30, 'q': 90, 'k': 900 };
+
         let tabuleiro;
         let turno;
         let pecaSelecionada;
-        let modoDeJogo = 'amigo'; // 'amigo' ou 'ia'
+        let modoDeJogo = 'amigo';
 
         function definirModo(modo) {
             modoDeJogo = modo;
@@ -173,6 +177,9 @@
                     tabuleiro[linha][coluna] = peca;
                     tabuleiro[pecaLinha][pecaColuna] = '';
                     trocarTurno();
+                    if (modoDeJogo === 'ia' && turno === 'preto') {
+                        setTimeout(moverIA, 500);
+                    }
                 }
 
                 pecaSelecionada = null;
@@ -182,9 +189,104 @@
                     pecaSelecionada = [linha, coluna];
                     const casaSelecionada = document.querySelector(`.casa[data-linha="${linha}"][data-coluna="${coluna}"]`);
                     casaSelecionada.classList.add('selecionada');
-                    renderizarTabuleiro(); // Redesenha para mostrar os guias
+                    renderizarTabuleiro();
                 }
             }
+        }
+        
+        // --- Lógica da IA ---
+        function moverIA() {
+            const { melhorMovimento, melhorScore } = minimax(tabuleiro, 2, -Infinity, Infinity, true);
+            if (melhorMovimento) {
+                const { from, to } = melhorMovimento;
+                tabuleiro[to.linha][to.coluna] = tabuleiro[from.linha][from.coluna];
+                tabuleiro[from.linha][from.coluna] = '';
+                trocarTurno();
+                renderizarTabuleiro();
+            }
+        }
+
+        function minimax(tabuleiro, profundidade, alpha, beta, maximizando) {
+            if (profundidade === 0) {
+                return { melhorScore: avaliarTabuleiro(tabuleiro) };
+            }
+
+            const movimentosPossiveis = obterTodosMovimentos(tabuleiro, maximizando ? 'preto' : 'branco');
+
+            if (maximizando) {
+                let melhorScore = -Infinity;
+                let melhorMovimento = null;
+                for (const mov of movimentosPossiveis) {
+                    const novoTabuleiro = fazerMovimento(tabuleiro, mov);
+                    const resultado = minimax(novoTabuleiro, profundidade - 1, alpha, beta, false);
+                    if (resultado.melhorScore > melhorScore) {
+                        melhorScore = resultado.melhorScore;
+                        melhorMovimento = mov;
+                    }
+                    alpha = Math.max(alpha, melhorScore);
+                    if (beta <= alpha) break;
+                }
+                return { melhorScore, melhorMovimento };
+            } else { // minimizando
+                let melhorScore = Infinity;
+                let melhorMovimento = null;
+                for (const mov of movimentosPossiveis) {
+                    const novoTabuleiro = fazerMovimento(tabuleiro, mov);
+                    const resultado = minimax(novoTabuleiro, profundidade - 1, alpha, beta, true);
+                    if (resultado.melhorScore < melhorScore) {
+                        melhorScore = resultado.melhorScore;
+                        melhorMovimento = mov;
+                    }
+                    beta = Math.min(beta, melhorScore);
+                    if (beta <= alpha) break;
+                }
+                return { melhorScore, melhorMovimento };
+            }
+        }
+
+        function avaliarTabuleiro(tabuleiro) {
+            let pontuacao = 0;
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const peca = tabuleiro[i][j];
+                    if (peca) {
+                        const valor = pecasValor[peca.toLowerCase()] || 0;
+                        if (peca === peca.toUpperCase()) {
+                            pontuacao -= valor; // Pontuação negativa para peças brancas (minimizador)
+                        } else {
+                            pontuacao += valor; // Pontuação positiva para peças pretas (maximizador)
+                        }
+                    }
+                }
+            }
+            return pontuacao;
+        }
+
+        function obterTodosMovimentos(tabuleiro, cor) {
+            const movimentos = [];
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const peca = tabuleiro[i][j];
+                    if (peca && ((cor === 'branco' && peca === peca.toUpperCase()) || (cor === 'preto' && peca === peca.toLowerCase()))) {
+                        for (let dL = 0; dL < 8; dL++) {
+                            for (let dC = 0; dC < 8; dC++) {
+                                if (movimentoValido(peca, i, j, dL, dC)) {
+                                    movimentos.push({ from: { linha: i, coluna: j }, to: { linha: dL, coluna: dC } });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return movimentos;
+        }
+        
+        function fazerMovimento(tabuleiro, movimento) {
+            const novoTabuleiro = tabuleiro.map(row => [...row]);
+            const { from, to } = movimento;
+            novoTabuleiro[to.linha][to.coluna] = novoTabuleiro[from.linha][from.coluna];
+            novoTabuleiro[from.linha][from.coluna] = '';
+            return novoTabuleiro;
         }
 
         function movimentoValido(peca, origemLinha, origemColuna, destinoLinha, destinoColuna) {
@@ -212,15 +314,10 @@
             const direcao = (peca === peca.toUpperCase()) ? -1 : 1;
             const linhaInicial = (peca === peca.toUpperCase()) ? 6 : 1;
             
-            // Movimento normal de 1 casa
             if (oL + direcao === dL && oC === dC && tabuleiro[dL][dC] === '') return true;
-
-            // Movimento inicial de 2 casas
             if (oL === linhaInicial && oL + 2 * direcao === dL && oC === dC && tabuleiro[dL][dC] === '' && tabuleiro[oL + direcao][oC] === '') return true;
-
-            // Captura
             if (oL + direcao === dL && Math.abs(oC - dC) === 1 && tabuleiro[dL][dC] !== '') return true;
-
+            
             return false;
         }
 
