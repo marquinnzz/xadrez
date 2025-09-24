@@ -15,6 +15,11 @@
             margin: 0;
             background-color: #f4f4f4;
         }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
         .tabuleiro {
             display: grid;
             grid-template-columns: repeat(8, 50px);
@@ -30,15 +35,31 @@
             align-items: center;
             font-size: 30px;
             cursor: pointer;
+            position: relative;
         }
         .clara { background-color: #f0d9b5; }
         .escura { background-color: #b58863; }
         .selecionada { background-color: #ffcc00 !important; }
+        .peca.branca { color: #FFFFFF; text-shadow: 1px 1px 2px #000; }
+        .peca.preta { color: #333333; }
+        .guia-movimento {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background-color: green;
+            border-radius: 50%;
+            pointer-events: none; /* Permite o clique na casa, não na bolinha */
+        }
         
         #mensagem {
             margin: 20px 0;
             font-size: 1.2em;
             font-weight: bold;
+        }
+        .opcoes-jogo {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
         }
         button {
             padding: 10px 20px;
@@ -53,9 +74,15 @@
 </head>
 <body>
     <h1>Xadrez Simples</h1>
-    <div class="tabuleiro" id="tabuleiro"></div>
-    <div id="mensagem">É a vez das Brancas</div>
-    <button onclick="reiniciarJogo()">Reiniciar Jogo</button>
+    <div class="container">
+        <div class="opcoes-jogo">
+            <button onclick="definirModo('amigo')">Jogar contra amigo</button>
+            <button onclick="definirModo('ia')">Jogar contra IA</button>
+        </div>
+        <div class="tabuleiro" id="tabuleiro"></div>
+        <div id="mensagem">É a vez das Brancas</div>
+        <button onclick="reiniciarJogo()">Reiniciar Jogo</button>
+    </div>
 
     <script>
         const tabuleiroEl = document.getElementById('tabuleiro');
@@ -69,6 +96,12 @@
         let tabuleiro;
         let turno;
         let pecaSelecionada;
+        let modoDeJogo = 'amigo'; // 'amigo' ou 'ia'
+
+        function definirModo(modo) {
+            modoDeJogo = modo;
+            alert(`Modo de jogo definido para: ${modo}. Reinicie o jogo para aplicar.`);
+        }
 
         function reiniciarJogo() {
             tabuleiro = [
@@ -101,12 +134,30 @@
                     if (peca) {
                         const pecaEl = document.createElement('span');
                         pecaEl.classList.add('peca');
+                        pecaEl.classList.add(peca === peca.toUpperCase() ? 'branca' : 'preta');
                         pecaEl.innerHTML = pecasUnicode[peca];
                         casaEl.appendChild(pecaEl);
                     }
                     
                     casaEl.addEventListener('click', () => handleClick(i, j));
                     tabuleiroEl.appendChild(casaEl);
+                }
+            }
+            if (pecaSelecionada) {
+                mostrarMovimentosValidos(pecaSelecionada[0], pecaSelecionada[1]);
+            }
+        }
+
+        function mostrarMovimentosValidos(linha, coluna) {
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const peca = tabuleiro[linha][coluna];
+                    if (movimentoValido(peca, linha, coluna, i, j)) {
+                        const casaAlvo = document.querySelector(`.casa[data-linha="${i}"][data-coluna="${j}"]`);
+                        const guia = document.createElement('div');
+                        guia.classList.add('guia-movimento');
+                        casaAlvo.appendChild(guia);
+                    }
                 }
             }
         }
@@ -131,6 +182,7 @@
                     pecaSelecionada = [linha, coluna];
                     const casaSelecionada = document.querySelector(`.casa[data-linha="${linha}"][data-coluna="${coluna}"]`);
                     casaSelecionada.classList.add('selecionada');
+                    renderizarTabuleiro(); // Redesenha para mostrar os guias
                 }
             }
         }
@@ -155,7 +207,7 @@
                 default: return false;
             }
         }
-
+        
         function movimentoPeao(peca, oL, oC, dL, dC) {
             const direcao = (peca === peca.toUpperCase()) ? -1 : 1;
             const linhaInicial = (peca === peca.toUpperCase()) ? 6 : 1;
