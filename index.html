@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xadrez Simples</title>
+    <title>Xadrez Completo</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -29,16 +29,25 @@
             justify-content: center;
             align-items: center;
             font-size: 30px;
+            cursor: pointer;
         }
         .clara { background-color: #f0d9b5; }
         .escura { background-color: #b58863; }
-        .peca { cursor: pointer; }
-        .selecionada { background-color: #ffcc00 !important; } /* Destaca a casa selecionada */
+        .selecionada { background-color: #ffcc00 !important; }
         
         #mensagem {
-            margin-top: 20px;
+            margin: 20px 0;
             font-size: 1.2em;
             font-weight: bold;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background-color: #337ab7;
+            color: white;
+            border-radius: 5px;
         }
     </style>
 </head>
@@ -46,29 +55,37 @@
     <h1>Xadrez Simples</h1>
     <div class="tabuleiro" id="tabuleiro"></div>
     <div id="mensagem">É a vez das Brancas</div>
+    <button onclick="reiniciarJogo()">Reiniciar Jogo</button>
 
     <script>
         const tabuleiroEl = document.getElementById('tabuleiro');
         const mensagemEl = document.getElementById('mensagem');
         
-        let tabuleiro = [
-            ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
-            ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
-            ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
-        ];
-
         const pecasUnicode = {
             'r': '&#9820;', 'n': '&#9822;', 'b': '&#9821;', 'q': '&#9819;', 'k': '&#9818;', 'p': '&#9823;',
             'R': '&#9814;', 'N': '&#9816;', 'B': '&#9815;', 'Q': '&#9813;', 'K': '&#9812;', 'P': '&#9817;'
         };
 
-        let turno = 'branco'; // 'branco' ou 'preto'
-        let pecaSelecionada = null; // Armazena a peça selecionada
+        let tabuleiro;
+        let turno;
+        let pecaSelecionada;
+
+        function reiniciarJogo() {
+            tabuleiro = [
+                ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
+                ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
+                ['', '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', ''],
+                ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
+                ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
+            ];
+            turno = 'branco';
+            pecaSelecionada = null;
+            mensagemEl.textContent = 'É a vez das Brancas';
+            renderizarTabuleiro();
+        }
 
         function renderizarTabuleiro() {
             tabuleiroEl.innerHTML = '';
@@ -98,7 +115,6 @@
             const pecaNaCasa = tabuleiro[linha][coluna];
 
             if (pecaSelecionada) {
-                // Tentativa de mover
                 const [pecaLinha, pecaColuna] = pecaSelecionada;
                 const peca = tabuleiro[pecaLinha][pecaColuna];
 
@@ -111,7 +127,6 @@
                 pecaSelecionada = null;
                 renderizarTabuleiro();
             } else {
-                // Selecionar uma peça
                 if (pecaNaCasa && ((turno === 'branco' && pecaNaCasa === pecaNaCasa.toUpperCase()) || (turno === 'preto' && pecaNaCasa === pecaNaCasa.toLowerCase()))) {
                     pecaSelecionada = [linha, coluna];
                     const casaSelecionada = document.querySelector(`.casa[data-linha="${linha}"][data-coluna="${coluna}"]`);
@@ -120,31 +135,89 @@
             }
         }
 
-        // Lógica de movimento para as peças. Vamos começar com o Peão.
         function movimentoValido(peca, origemLinha, origemColuna, destinoLinha, destinoColuna) {
-            if (peca.toLowerCase() === 'p') {
-                // Movimento para o peão branco
-                if (peca === 'P') {
-                    // Andar 1 casa para a frente
-                    if (origemColuna === destinoColuna && destinoLinha === origemLinha - 1 && tabuleiro[destinoLinha][destinoColuna] === '') {
-                        return true;
-                    }
-                    // Andar 2 casas no primeiro movimento
-                    if (origemLinha === 6 && origemColuna === destinoColuna && destinoLinha === origemLinha - 2 && tabuleiro[destinoLinha][destinoColuna] === '') {
-                        return true;
-                    }
-                    // Captura
-                    if (Math.abs(origemColuna - destinoColuna) === 1 && destinoLinha === origemLinha - 1 && tabuleiro[destinoLinha][destinoColuna] !== '' && tabuleiro[destinoLinha][destinoColuna].toLowerCase() !== 'p') {
-                        return true;
-                    }
-                }
-                // Movimento para o peão preto (lógica similar, mas para frente)
-                if (peca === 'p') {
-                    // ... adicione a lógica para o peão preto aqui ...
-                }
+            const pecaDestino = tabuleiro[destinoLinha][destinoColuna];
+            if (pecaDestino) {
+                const corOrigem = peca === peca.toUpperCase() ? 'branco' : 'preto';
+                const corDestino = pecaDestino === pecaDestino.toUpperCase() ? 'branco' : 'preto';
+                if (corOrigem === corDestino) return false;
             }
-            // Adicionar lógica para outras peças (torre, cavalo, etc.)
+
+            const pecaTipo = peca.toLowerCase();
+
+            switch (pecaTipo) {
+                case 'p': return movimentoPeao(peca, origemLinha, origemColuna, destinoLinha, destinoColuna);
+                case 'r': return movimentoTorre(origemLinha, origemColuna, destinoLinha, destinoColuna);
+                case 'n': return movimentoCavalo(origemLinha, origemColuna, destinoLinha, destinoColuna);
+                case 'b': return movimentoBispo(origemLinha, origemColuna, destinoLinha, destinoColuna);
+                case 'q': return movimentoRainha(origemLinha, origemColuna, destinoLinha, destinoColuna);
+                case 'k': return movimentoRei(origemLinha, origemColuna, destinoLinha, destinoColuna);
+                default: return false;
+            }
+        }
+
+        function movimentoPeao(peca, oL, oC, dL, dC) {
+            const direcao = (peca === peca.toUpperCase()) ? -1 : 1;
+            const linhaInicial = (peca === peca.toUpperCase()) ? 6 : 1;
+            
+            // Movimento normal de 1 casa
+            if (oL + direcao === dL && oC === dC && tabuleiro[dL][dC] === '') return true;
+
+            // Movimento inicial de 2 casas
+            if (oL === linhaInicial && oL + 2 * direcao === dL && oC === dC && tabuleiro[dL][dC] === '' && tabuleiro[oL + direcao][oC] === '') return true;
+
+            // Captura
+            if (oL + direcao === dL && Math.abs(oC - dC) === 1 && tabuleiro[dL][dC] !== '') return true;
+
             return false;
+        }
+
+        function movimentoTorre(oL, oC, dL, dC) {
+            if (oL !== dL && oC !== dC) return false;
+            const deltaL = dL - oL;
+            const deltaC = dC - oC;
+            const passoL = Math.sign(deltaL);
+            const passoC = Math.sign(deltaC);
+            let tempL = oL + passoL;
+            let tempC = oC + passoC;
+            while (tempL !== dL || tempC !== dC) {
+                if (tabuleiro[tempL][tempC] !== '') return false;
+                tempL += passoL;
+                tempC += passoC;
+            }
+            return true;
+        }
+
+        function movimentoCavalo(oL, oC, dL, dC) {
+            const deltaL = Math.abs(dL - oL);
+            const deltaC = Math.abs(dC - oC);
+            return (deltaL === 2 && deltaC === 1) || (deltaL === 1 && deltaC === 2);
+        }
+
+        function movimentoBispo(oL, oC, dL, dC) {
+            if (Math.abs(dL - oL) !== Math.abs(dC - oC)) return false;
+            const deltaL = dL - oL;
+            const deltaC = dC - oC;
+            const passoL = Math.sign(deltaL);
+            const passoC = Math.sign(deltaC);
+            let tempL = oL + passoL;
+            let tempC = oC + passoC;
+            while (tempL !== dL) {
+                if (tabuleiro[tempL][tempC] !== '') return false;
+                tempL += passoL;
+                tempC += passoC;
+            }
+            return true;
+        }
+
+        function movimentoRainha(oL, oC, dL, dC) {
+            return movimentoTorre(oL, oC, dL, dC) || movimentoBispo(oL, oC, dL, dC);
+        }
+
+        function movimentoRei(oL, oC, dL, dC) {
+            const deltaL = Math.abs(dL - oL);
+            const deltaC = Math.abs(dC - oC);
+            return (deltaL <= 1 && deltaC <= 1);
         }
 
         function trocarTurno() {
@@ -152,7 +225,7 @@
             mensagemEl.textContent = `É a vez das ${turno === 'branco' ? 'Brancas' : 'Pretas'}`;
         }
 
-        renderizarTabuleiro();
+        reiniciarJogo();
     </script>
 </body>
 </html>
