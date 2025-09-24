@@ -3,14 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xadrez Básico</title>
+    <title>Xadrez Simples</title>
     <style>
-        /* CSS Básico para o tabuleiro */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
         .tabuleiro {
             display: grid;
             grid-template-columns: repeat(8, 50px);
             grid-template-rows: repeat(8, 50px);
             border: 2px solid #333;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
         .casa {
             width: 50px;
@@ -23,16 +33,25 @@
         .clara { background-color: #f0d9b5; }
         .escura { background-color: #b58863; }
         .peca { cursor: pointer; }
+        .selecionada { background-color: #ffcc00 !important; } /* Destaca a casa selecionada */
+        
+        #mensagem {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <h1>Xadrez Simples</h1>
     <div class="tabuleiro" id="tabuleiro"></div>
+    <div id="mensagem">É a vez das Brancas</div>
 
     <script>
         const tabuleiroEl = document.getElementById('tabuleiro');
-
-        const tabuleiro = [
+        const mensagemEl = document.getElementById('mensagem');
+        
+        let tabuleiro = [
             ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
             ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
             ['', '', '', '', '', '', '', ''],
@@ -43,6 +62,14 @@
             ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
         ];
 
+        const pecasUnicode = {
+            'r': '&#9820;', 'n': '&#9822;', 'b': '&#9821;', 'q': '&#9819;', 'k': '&#9818;', 'p': '&#9823;',
+            'R': '&#9814;', 'N': '&#9816;', 'B': '&#9815;', 'Q': '&#9813;', 'K': '&#9812;', 'P': '&#9817;'
+        };
+
+        let turno = 'branco'; // 'branco' ou 'preto'
+        let pecaSelecionada = null; // Armazena a peça selecionada
+
         function renderizarTabuleiro() {
             tabuleiroEl.innerHTML = '';
             for (let i = 0; i < 8; i++) {
@@ -50,24 +77,79 @@
                     const casaEl = document.createElement('div');
                     casaEl.classList.add('casa');
                     casaEl.classList.add((i + j) % 2 === 0 ? 'clara' : 'escura');
+                    casaEl.dataset.linha = i;
+                    casaEl.dataset.coluna = j;
                     
                     const peca = tabuleiro[i][j];
                     if (peca) {
                         const pecaEl = document.createElement('span');
                         pecaEl.classList.add('peca');
-                        
-                        // Mapeamento de peças para caracteres Unicode
-                        const pecasUnicode = {
-                            'r': '&#9820;', 'n': '&#9822;', 'b': '&#9821;', 'q': '&#9819;', 'k': '&#9818;', 'p': '&#9823;',
-                            'R': '&#9814;', 'N': '&#9816;', 'B': '&#9815;', 'Q': '&#9813;', 'K': '&#9812;', 'P': '&#9817;'
-                        };
-
                         pecaEl.innerHTML = pecasUnicode[peca];
                         casaEl.appendChild(pecaEl);
                     }
+                    
+                    casaEl.addEventListener('click', () => handleClick(i, j));
                     tabuleiroEl.appendChild(casaEl);
                 }
             }
+        }
+
+        function handleClick(linha, coluna) {
+            const pecaNaCasa = tabuleiro[linha][coluna];
+
+            if (pecaSelecionada) {
+                // Tentativa de mover
+                const [pecaLinha, pecaColuna] = pecaSelecionada;
+                const peca = tabuleiro[pecaLinha][pecaColuna];
+
+                if (movimentoValido(peca, pecaLinha, pecaColuna, linha, coluna)) {
+                    tabuleiro[linha][coluna] = peca;
+                    tabuleiro[pecaLinha][pecaColuna] = '';
+                    trocarTurno();
+                }
+
+                pecaSelecionada = null;
+                renderizarTabuleiro();
+            } else {
+                // Selecionar uma peça
+                if (pecaNaCasa && ((turno === 'branco' && pecaNaCasa === pecaNaCasa.toUpperCase()) || (turno === 'preto' && pecaNaCasa === pecaNaCasa.toLowerCase()))) {
+                    pecaSelecionada = [linha, coluna];
+                    const casaSelecionada = document.querySelector(`.casa[data-linha="${linha}"][data-coluna="${coluna}"]`);
+                    casaSelecionada.classList.add('selecionada');
+                }
+            }
+        }
+
+        // Lógica de movimento para as peças. Vamos começar com o Peão.
+        function movimentoValido(peca, origemLinha, origemColuna, destinoLinha, destinoColuna) {
+            if (peca.toLowerCase() === 'p') {
+                // Movimento para o peão branco
+                if (peca === 'P') {
+                    // Andar 1 casa para a frente
+                    if (origemColuna === destinoColuna && destinoLinha === origemLinha - 1 && tabuleiro[destinoLinha][destinoColuna] === '') {
+                        return true;
+                    }
+                    // Andar 2 casas no primeiro movimento
+                    if (origemLinha === 6 && origemColuna === destinoColuna && destinoLinha === origemLinha - 2 && tabuleiro[destinoLinha][destinoColuna] === '') {
+                        return true;
+                    }
+                    // Captura
+                    if (Math.abs(origemColuna - destinoColuna) === 1 && destinoLinha === origemLinha - 1 && tabuleiro[destinoLinha][destinoColuna] !== '' && tabuleiro[destinoLinha][destinoColuna].toLowerCase() !== 'p') {
+                        return true;
+                    }
+                }
+                // Movimento para o peão preto (lógica similar, mas para frente)
+                if (peca === 'p') {
+                    // ... adicione a lógica para o peão preto aqui ...
+                }
+            }
+            // Adicionar lógica para outras peças (torre, cavalo, etc.)
+            return false;
+        }
+
+        function trocarTurno() {
+            turno = turno === 'branco' ? 'preto' : 'branco';
+            mensagemEl.textContent = `É a vez das ${turno === 'branco' ? 'Brancas' : 'Pretas'}`;
         }
 
         renderizarTabuleiro();
