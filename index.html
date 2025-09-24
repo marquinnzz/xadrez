@@ -1,13 +1,76 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jogo de Xadrez</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xadrez Básico</title>
+    <style>
+        /* CSS Básico para o tabuleiro */
+        .tabuleiro {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+            border: 2px solid #333;
+        }
+        .casa {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+        }
+        .clara { background-color: #f0d9b5; }
+        .escura { background-color: #b58863; }
+        .peca { cursor: pointer; }
+    </style>
 </head>
 <body>
-  <div id="tabuleiro" class="tabuleiro"></div>
-  <script src="script.js"></script>
+    <h1>Xadrez Simples</h1>
+    <div class="tabuleiro" id="tabuleiro"></div>
+
+    <script>
+        const tabuleiroEl = document.getElementById('tabuleiro');
+
+        const tabuleiro = [
+            ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
+            ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
+            ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
+        ];
+
+        function renderizarTabuleiro() {
+            tabuleiroEl.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const casaEl = document.createElement('div');
+                    casaEl.classList.add('casa');
+                    casaEl.classList.add((i + j) % 2 === 0 ? 'clara' : 'escura');
+                    
+                    const peca = tabuleiro[i][j];
+                    if (peca) {
+                        const pecaEl = document.createElement('span');
+                        pecaEl.classList.add('peca');
+                        
+                        // Mapeamento de peças para caracteres Unicode
+                        const pecasUnicode = {
+                            'r': '&#9820;', 'n': '&#9822;', 'b': '&#9821;', 'q': '&#9819;', 'k': '&#9818;', 'p': '&#9823;',
+                            'R': '&#9814;', 'N': '&#9816;', 'B': '&#9815;', 'Q': '&#9813;', 'K': '&#9812;', 'P': '&#9817;'
+                        };
+
+                        pecaEl.innerHTML = pecasUnicode[peca];
+                        casaEl.appendChild(pecaEl);
+                    }
+                    tabuleiroEl.appendChild(casaEl);
+                }
+            }
+        }
+
+        renderizarTabuleiro();
+    </script>
 </body>
 </html>
