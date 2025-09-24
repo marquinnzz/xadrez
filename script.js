@@ -1,13 +1,13 @@
 const tabuleiro = document.getElementById('tabuleiro');
 const pecasIniciais = [
-  '♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜',
-  '♟', '♟', '♟', '♟', '♟', '♟', '♟', '♟',
-  '', '', '', '', '', '', '', '',
-  '', '', '', '', '', '', '', '',
-  '', '', '', '', '', '', '', '',
-  '', '', '', '', '', '', '', '',
+  '♖', '♘', '♗', '♕', '♔', '♗', '♘', '♖',
   '♙', '♙', '♙', '♙', '♙', '♙', '♙', '♙',
-  '♖', '♘', '♗', '♕', '♔', '♗', '♘', '♖'
+  '', '', '', '', '', '', '', '',
+  '', '', '', '', '', '', '', '',
+  '', '', '', '', '', '', '', '',
+  '', '', '', '', '', '', '', '',
+  '♟', '♟', '♟', '♟', '♟', '♟', '♟', '♟',
+  '♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜'
 ];
 
 function criarTabuleiro() {
@@ -18,6 +18,22 @@ function criarTabuleiro() {
     tabuleiro.appendChild(casa);
   }
   posicionarPecas();
+  adicionarFaixas();
+}
+
+function adicionarFaixas() {
+  const casas = tabuleiro.querySelectorAll('div');
+  for (let i = 0; i < 8; i++) {
+    const faixaHorizontal = document.createElement('div');
+    faixaHorizontal.classList.add('faixa', 'horizontal');
+    faixaHorizontal.textContent = 8 - i;
+    casas[i * 8].appendChild(faixaHorizontal);
+
+    const faixaVertical = document.createElement('div');
+    faixaVertical.classList.add('faixa', 'vertical');
+    faixaVertical.textContent = String.fromCharCode(65 + i);
+    casas[i].appendChild(faixaVertical);
+  }
 }
 
 function posicionarPecas() {
