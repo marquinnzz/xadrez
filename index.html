@@ -3,21 +3,28 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Jogo de Xadrez com Xeque</title>
+<title>Jogo de Xadrez vs Máquina</title>
 <style>
   body {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     padding: 20px;
-    background: #f0f0f0;
+    background: #5F9EA0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: white;
+    user-select: none;
+  }
+  #game-container {
+    display: flex;
+    gap: 20px;
   }
   #chessboard {
     display: grid;
     grid-template-columns: repeat(8, 60px);
     grid-template-rows: repeat(8, 60px);
     border: 2px solid #333;
-    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
   }
   .square {
     width: 60px;
@@ -28,7 +35,6 @@
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    user-select: none;
   }
   .light {
     background-color: #eeeed2;
@@ -50,13 +56,54 @@
     outline: 3px solid #2ecc71;
   }
   .check {
-    outline: 3px solid #e74c3c !important; /* destaque vermelho para o rei em xeque */
+    outline: 3px solid #e74c3c !important;
+  }
+  #captured-pieces {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    font-size: 20px;
+  }
+  .captured-section {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 10px;
+    border-radius: 8px;
+    width: 160px;
+  }
+  .captured-title {
+    font-weight: bold;
+    margin-bottom: 8px;
+    text-align: center;
+    font-size: 24px;
+  }
+  .captured-pieces-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .captured-piece {
+    font-size: 28px;
+    user-select: none;
   }
 </style>
 </head>
 <body>
 
-<div id="chessboard"></div>
+<h1>Jogo de Xadrez - Você (Brancas) vs Máquina (Pretas)</h1>
+<div id="game-container">
+  <div id="chessboard"></div>
+  <div id="captured-pieces">
+    <div class="captured-section" id="captured-white">
+      <div class="captured-title">Peças capturadas das Brancas</div>
+      <div class="captured-pieces-list" id="captured-white-list"></div>
+    </div>
+    <div class="captured-section" id="captured-black">
+      <div class="captured-title">Peças capturadas das Pretas</div>
+      <div class="captured-pieces-list" id="captured-black-list"></div>
+    </div>
+  </div>
+</div>
 
 <script>
   const pieces = {
@@ -76,11 +123,17 @@
   ];
 
   const boardDiv = document.getElementById('chessboard');
+  const capturedWhiteList = document.getElementById('captured-white-list');
+  const capturedBlackList = document.getElementById('captured-black-list');
 
   let selected = null;
-  let turn = 'white';
+  let turn = 'white'; // jogador humano é branco
+  let gameOver = false;
 
-  // Armazenar posição do rei para checar xeque rápido
+  // Guardar peças capturadas
+  let capturedWhite = [];
+  let capturedBlack = [];
+
   function findKing(color) {
     const kingChar = color === 'white' ? 'K' : 'k';
     for(let r=0; r<8; r++) {
@@ -91,15 +144,12 @@
     return null;
   }
 
-  // Verifica se a cor 'color' está em xeque
   function isInCheck(color) {
     const kingPos = findKing(color);
-    if(!kingPos) return false; // Rei capturado, teoricamente fim do jogo
+    if(!kingPos) return false;
 
-    // Verificar se alguma peça adversária ataca o rei
     const opponent = color === 'white' ? 'black' : 'white';
 
-    // Vamos checar se algum movimento do adversário pode atacar o rei
     for(let r=0; r<8; r++) {
       for(let c=0; c<8; c++) {
         if(board[r][c] && isPieceColor(board[r][c], opponent)) {
@@ -113,7 +163,6 @@
     return false;
   }
 
-  // Função auxiliar para validar cor da peça
   function isPieceColor(piece, color) {
     if(color === 'white') return piece === piece.toUpperCase();
     return piece === piece.toLowerCase();
@@ -139,7 +188,6 @@
           square.style.textShadow = (piece === piece.toUpperCase()) ? '0 0 3px black' : 'none';
         }
 
-        // Se rei está em xeque, destacar o rei
         if(inCheck && kingPos && kingPos[0] === r && kingPos[1] === c) {
           square.classList.add('check');
         }
@@ -148,9 +196,9 @@
         boardDiv.appendChild(square);
       }
     }
+    updateCapturedDisplay();
   }
 
-  // Esta versão de getValidMoves ignora o xeque para gerar movimentos base
   function getValidMovesRaw(row, col, ignoreCheck=false) {
     const piece = board[row][col];
     if(!piece) return [];
@@ -209,7 +257,6 @@
     return moves;
   }
 
-  // Função que filtra os movimentos que deixariam o rei em xeque
   function getValidMoves(row, col) {
     const piece = board[row][col];
     if(!piece) return [];
@@ -217,9 +264,7 @@
     const isWhite = piece === piece.toUpperCase();
     let rawMoves = getValidMovesRaw(row, col);
 
-    // Para cada movimento, simulamos o movimento e verificamos se fica em xeque
     const legalMoves = rawMoves.filter(([r,c]) => {
-      // copia do tabuleiro para simulação
       const backupFrom = board[row][col];
       const backupTo = board[r][c];
 
@@ -228,7 +273,6 @@
 
       const inCheck = isInCheck(isWhite ? 'white' : 'black');
 
-      // desfaz a simulação
       board[row][col] = backupFrom;
       board[r][c] = backupTo;
 
@@ -239,23 +283,23 @@
   }
 
   function onSquareClick(row, col) {
+    if(gameOver) return;
+    if(turn !== 'white') return; // só o humano (branco) joga clicando
+
     const piece = board[row][col];
 
     if(selected) {
       const moves = getValidMoves(selected[0], selected[1]);
       if(moves.some(m => m[0] === row && m[1] === col)) {
-        movePiece(selected[0], selected[1], row, col);
+        makeMove(selected[0], selected[1], row, col);
         selected = null;
-        turn = turn === 'white' ? 'black' : 'white';
-
-        // Verifica se o próximo jogador está em xeque
-        if(isInCheck(turn)) {
-          alert(turn.toUpperCase() + ' está em XEQUE!');
-          // TODO: aqui pode implementar xeque-mate no futuro
-        }
         createBoard();
+
+        if(gameOver) return;
+
+        turn = 'black';
+        setTimeout(computerMove, 500);
       } else {
-        // Seleciona outra peça do jogador, se possível
         if(piece && isPieceTurn(piece)) {
           selected = [row,col];
           createBoard();
@@ -283,7 +327,6 @@
     const squares = boardDiv.children;
     const moves = getValidMoves(row, col);
 
-    // Selecionar o quadrado da peça
     const indexSelected = row * 8 + col;
     squares[indexSelected].classList.add('selected');
 
@@ -324,9 +367,97 @@
     return r>=0 && r<8 && c>=0 && c<8;
   }
 
-  function movePiece(fromR, fromC, toR, toC) {
+  function makeMove(fromR, fromC, toR, toC) {
+    const captured = board[toR][toC];
+    if(captured) {
+      // Guarda a peça capturada
+      if(captured === captured.toUpperCase()) capturedWhite.push(captured);
+      else capturedBlack.push(captured);
+    }
     board[toR][toC] = board[fromR][fromC];
     board[fromR][fromC] = '';
+
+    if(isInCheck(turn === 'white' ? 'black' : 'white')) {
+      // Alerta de xeque para o adversário
+      // Mas só mostramos alerta pro humano (branco)
+      if(turn === 'white') alert('Máquina está em XEQUE!');
+      else alert('Você está em XEQUE!');
+    }
+
+    if(checkMate(turn === 'white' ? 'black' : 'white')) {
+      alert((turn === 'white' ? 'Máquina' : 'Você') + ' foi MATE! Fim de jogo.');
+      gameOver = true;
+    }
+  }
+
+  // Implementa um checagem simples de mate: não tem movimentos legais e está em xeque
+  function checkMate(color) {
+    if(!isInCheck(color)) return false;
+
+    // Verifica se existe algum movimento legal para o jogador da cor
+    for(let r=0; r<8; r++) {
+      for(let c=0; c<8; c++) {
+        if(board[r][c] && isPieceColor(board[r][c], color)) {
+          const moves = getValidMoves(r, c);
+          if(moves.length > 0) return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  // Função que executa jogada da máquina (preto)
+  function computerMove() {
+    if(gameOver) return;
+
+    // Pega todas peças pretas e movimentos legais
+    const allMoves = [];
+    for(let r=0; r<8; r++) {
+      for(let c=0; c<8; c++) {
+        if(board[r][c] && isPieceColor(board[r][c], 'black')) {
+          const moves = getValidMoves(r, c);
+          moves.forEach(mv => allMoves.push({from: [r,c], to: mv}));
+        }
+      }
+    }
+
+    if(allMoves.length === 0) {
+      if(isInCheck('black')) {
+        alert('Você ganhou! Máquina está em mate!');
+      } else {
+        alert('Empate por falta de movimentos!');
+      }
+      gameOver = true;
+      return;
+    }
+
+    // Escolhe uma jogada aleatória (pode ser melhorada depois)
+    const choice = allMoves[Math.floor(Math.random() * allMoves.length)];
+
+    makeMove(choice.from[0], choice.from[1], choice.to[0], choice.to[1]);
+    turn = 'white';
+    createBoard();
+  }
+
+  function updateCapturedDisplay() {
+    capturedWhiteList.innerHTML = '';
+    capturedBlackList.innerHTML = '';
+
+    capturedWhite.forEach(piece => {
+      const span = document.createElement('span');
+      span.classList.add('captured-piece');
+      span.textContent = pieces[piece];
+      span.style.color = 'white';
+      capturedWhiteList.appendChild(span);
+    });
+
+    capturedBlack.forEach(piece => {
+      const span = document.createElement('span');
+      span.classList.add('captured-piece');
+      span.textContent = pieces[piece];
+      span.style.color = 'black';
+      capturedBlackList.appendChild(span);
+    });
   }
 
   createBoard();
