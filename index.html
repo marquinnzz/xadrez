@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Jogo de Xadrez vs Máquina</title>
+<title>Jogo de Xadrez - Com IA e Multijogador</title>
 <style>
   body {
     display: flex;
@@ -14,6 +14,9 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: white;
     user-select: none;
+  }
+  h1 {
+    margin-bottom: 10px;
   }
   #game-container {
     display: flex;
@@ -58,17 +61,23 @@
   .check {
     outline: 3px solid #e74c3c !important;
   }
+  #sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 200px;
+  }
   #captured-pieces {
     display: flex;
     flex-direction: column;
     gap: 30px;
     font-size: 20px;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 15px;
+    border-radius: 8px;
   }
   .captured-section {
-    background: rgba(255, 255, 255, 0.15);
-    padding: 10px;
-    border-radius: 8px;
-    width: 160px;
+    /* border: 1px solid #fff; */
   }
   .captured-title {
     font-weight: bold;
@@ -86,21 +95,52 @@
     font-size: 28px;
     user-select: none;
   }
+  #buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  button {
+    background-color: #2ecc71;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #1a1a1a;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background-color: #27ae60;
+  }
+  button:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+    color: #444;
+  }
 </style>
 </head>
 <body>
 
-<h1>Jogo de Xadrez - Você (Brancas) vs Máquina (Pretas)</h1>
+<h1>Jogo de Xadrez</h1>
 <div id="game-container">
   <div id="chessboard"></div>
-  <div id="captured-pieces">
-    <div class="captured-section" id="captured-white">
-      <div class="captured-title">Peças capturadas das Brancas</div>
-      <div class="captured-pieces-list" id="captured-white-list"></div>
+  <div id="sidebar">
+    <div id="captured-pieces">
+      <div class="captured-section" id="captured-white">
+        <div class="captured-title">Peças capturadas das Brancas</div>
+        <div class="captured-pieces-list" id="captured-white-list"></div>
+      </div>
+      <div class="captured-section" id="captured-black">
+        <div class="captured-title">Peças capturadas das Pretas</div>
+        <div class="captured-pieces-list" id="captured-black-list"></div>
+      </div>
     </div>
-    <div class="captured-section" id="captured-black">
-      <div class="captured-title">Peças capturadas das Pretas</div>
-      <div class="captured-pieces-list" id="captured-black-list"></div>
+    <div id="buttons">
+      <button id="btn-restart">Reiniciar jogo</button>
+      <button id="btn-ai" disabled>Jogar contra IA</button>
+      <button id="btn-friend">Jogar com amigo</button>
     </div>
   </div>
 </div>
@@ -111,28 +151,39 @@
     'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙'
   };
 
-  let board = [
-    ['r','n','b','q','k','b','n','r'],
-    ['p','p','p','p','p','p','p','p'],
-    ['','','','','','','',''],
-    ['','','','','','','',''],
-    ['','','','','','','',''],
-    ['','','','','','','',''],
-    ['P','P','P','P','P','P','P','P'],
-    ['R','N','B','Q','K','B','N','R']
-  ];
+  let board;
+  let selected = null;
+  let turn;
+  let gameOver;
+  let capturedWhite;
+  let capturedBlack;
+  let mode; // 'ai' ou 'friend'
 
   const boardDiv = document.getElementById('chessboard');
   const capturedWhiteList = document.getElementById('captured-white-list');
   const capturedBlackList = document.getElementById('captured-black-list');
+  const btnRestart = document.getElementById('btn-restart');
+  const btnAI = document.getElementById('btn-ai');
+  const btnFriend = document.getElementById('btn-friend');
 
-  let selected = null;
-  let turn = 'white'; // jogador humano é branco
-  let gameOver = false;
-
-  // Guardar peças capturadas
-  let capturedWhite = [];
-  let capturedBlack = [];
+  function initGame() {
+    board = [
+      ['r','n','b','q','k','b','n','r'],
+      ['p','p','p','p','p','p','p','p'],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['P','P','P','P','P','P','P','P'],
+      ['R','N','B','Q','K','B','N','R']
+    ];
+    selected = null;
+    turn = 'white';
+    gameOver = false;
+    capturedWhite = [];
+    capturedBlack = [];
+    createBoard();
+  }
 
   function findKing(color) {
     const kingChar = color === 'white' ? 'K' : 'k';
@@ -197,6 +248,8 @@
       }
     }
     updateCapturedDisplay();
+
+    if(selected) highlightMoves(selected[0], selected[1]);
   }
 
   function getValidMovesRaw(row, col, ignoreCheck=false) {
@@ -284,10 +337,9 @@
 
   function onSquareClick(row, col) {
     if(gameOver) return;
-    if(turn !== 'white') return; // só o humano (branco) joga clicando
 
+    // Multijogador permite o jogador de vez clicar
     const piece = board[row][col];
-
     if(selected) {
       const moves = getValidMoves(selected[0], selected[1]);
       if(moves.some(m => m[0] === row && m[1] === col)) {
@@ -297,8 +349,14 @@
 
         if(gameOver) return;
 
-        turn = 'black';
-        setTimeout(computerMove, 500);
+        if(mode === 'ai') {
+          turn = turn === 'white' ? 'black' : 'white';
+          if(turn === 'black') {
+            setTimeout(computerMove, 500);
+          }
+        } else if(mode === 'friend') {
+          turn = turn === 'white' ? 'black' : 'white';
+        }
       } else {
         if(piece && isPieceTurn(piece)) {
           selected = [row,col];
@@ -370,98 +428,4 @@
   function makeMove(fromR, fromC, toR, toC) {
     const captured = board[toR][toC];
     if(captured) {
-      // Guarda a peça capturada
-      if(captured === captured.toUpperCase()) capturedWhite.push(captured);
-      else capturedBlack.push(captured);
-    }
-    board[toR][toC] = board[fromR][fromC];
-    board[fromR][fromC] = '';
-
-    if(isInCheck(turn === 'white' ? 'black' : 'white')) {
-      // Alerta de xeque para o adversário
-      // Mas só mostramos alerta pro humano (branco)
-      if(turn === 'white') alert('Máquina está em XEQUE!');
-      else alert('Você está em XEQUE!');
-    }
-
-    if(checkMate(turn === 'white' ? 'black' : 'white')) {
-      alert((turn === 'white' ? 'Máquina' : 'Você') + ' foi MATE! Fim de jogo.');
-      gameOver = true;
-    }
-  }
-
-  // Implementa um checagem simples de mate: não tem movimentos legais e está em xeque
-  function checkMate(color) {
-    if(!isInCheck(color)) return false;
-
-    // Verifica se existe algum movimento legal para o jogador da cor
-    for(let r=0; r<8; r++) {
-      for(let c=0; c<8; c++) {
-        if(board[r][c] && isPieceColor(board[r][c], color)) {
-          const moves = getValidMoves(r, c);
-          if(moves.length > 0) return false;
-        }
-      }
-    }
-    return true;
-  }
-
-  // Função que executa jogada da máquina (preto)
-  function computerMove() {
-    if(gameOver) return;
-
-    // Pega todas peças pretas e movimentos legais
-    const allMoves = [];
-    for(let r=0; r<8; r++) {
-      for(let c=0; c<8; c++) {
-        if(board[r][c] && isPieceColor(board[r][c], 'black')) {
-          const moves = getValidMoves(r, c);
-          moves.forEach(mv => allMoves.push({from: [r,c], to: mv}));
-        }
-      }
-    }
-
-    if(allMoves.length === 0) {
-      if(isInCheck('black')) {
-        alert('Você ganhou! Máquina está em mate!');
-      } else {
-        alert('Empate por falta de movimentos!');
-      }
-      gameOver = true;
-      return;
-    }
-
-    // Escolhe uma jogada aleatória (pode ser melhorada depois)
-    const choice = allMoves[Math.floor(Math.random() * allMoves.length)];
-
-    makeMove(choice.from[0], choice.from[1], choice.to[0], choice.to[1]);
-    turn = 'white';
-    createBoard();
-  }
-
-  function updateCapturedDisplay() {
-    capturedWhiteList.innerHTML = '';
-    capturedBlackList.innerHTML = '';
-
-    capturedWhite.forEach(piece => {
-      const span = document.createElement('span');
-      span.classList.add('captured-piece');
-      span.textContent = pieces[piece];
-      span.style.color = 'white';
-      capturedWhiteList.appendChild(span);
-    });
-
-    capturedBlack.forEach(piece => {
-      const span = document.createElement('span');
-      span.classList.add('captured-piece');
-      span.textContent = pieces[piece];
-      span.style.color = 'black';
-      capturedBlackList.appendChild(span);
-    });
-  }
-
-  createBoard();
-</script>
-
-</body>
-</html>
+      if(captured === captured.to
