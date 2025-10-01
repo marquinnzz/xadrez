@@ -12,15 +12,17 @@
     padding: 20px;
     background: #5F9EA0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: white;
+    color: #222;
     user-select: none;
   }
   h1 {
-    margin-bottom: 10px;
+    margin-bottom: 15px;
+    color: #fff;
+    text-shadow: 0 0 3px #333;
   }
   #game-container {
     display: flex;
-    gap: 20px;
+    gap: 25px;
   }
   #chessboard {
     display: grid;
@@ -33,30 +35,31 @@
     width: 60px;
     height: 60px;
     position: relative;
-    font-size: 42px;
+    font-size: 44px;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
+    user-select: none;
   }
   .light {
-    background-color: #eeeed2;
+    background-color: #f0d9b5;
   }
   .dark {
-    background-color: #769656;
+    background-color: #b58863;
   }
   .highlight {
     position: absolute;
-    width: 15px;
-    height: 15px;
-    background-color: rgba(46, 204, 113, 0.8);
+    width: 18px;
+    height: 18px;
+    background-color: #2ecc71cc; /* verde translúcido */
     border-radius: 50%;
     bottom: 8px;
     right: 8px;
     pointer-events: none;
   }
   .selected {
-    outline: 3px solid #2ecc71;
+    outline: 3px solid #27ae60;
   }
   .check {
     outline: 3px solid #e74c3c !important;
@@ -65,59 +68,62 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
-    width: 200px;
+    width: 230px;
+    background: #fff9;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 0 10px #222a;
   }
   #captured-pieces {
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 25px;
     font-size: 20px;
-    background: rgba(255, 255, 255, 0.15);
-    padding: 15px;
-    border-radius: 8px;
+    color: #222;
   }
   .captured-section {
-    /* border: 1px solid #fff; */
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 10px;
   }
   .captured-title {
     font-weight: bold;
     margin-bottom: 8px;
     text-align: center;
-    font-size: 24px;
+    font-size: 22px;
   }
   .captured-pieces-list {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
   }
   .captured-piece {
-    font-size: 28px;
+    font-size: 30px;
     user-select: none;
   }
   #buttons {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
   button {
-    background-color: #2ecc71;
+    background-color: #27ae60;
     border: none;
-    padding: 10px;
-    border-radius: 6px;
+    padding: 12px 10px;
+    border-radius: 8px;
     font-size: 18px;
-    font-weight: bold;
+    font-weight: 700;
     cursor: pointer;
-    color: #1a1a1a;
+    color: white;
     transition: background-color 0.3s ease;
   }
-  button:hover {
-    background-color: #27ae60;
+  button:hover:not(:disabled) {
+    background-color: #219150;
   }
   button:disabled {
     background-color: #95a5a6;
     cursor: not-allowed;
-    color: #444;
+    color: #eee;
   }
 </style>
 </head>
@@ -157,7 +163,7 @@
   let gameOver;
   let capturedWhite;
   let capturedBlack;
-  let mode; // 'ai' ou 'friend'
+  let mode = 'friend'; // default modo multijogador
 
   const boardDiv = document.getElementById('chessboard');
   const capturedWhiteList = document.getElementById('captured-white-list');
@@ -182,6 +188,8 @@
     gameOver = false;
     capturedWhite = [];
     capturedBlack = [];
+    btnAI.disabled = mode === 'ai';
+    btnFriend.disabled = mode === 'friend';
     createBoard();
   }
 
@@ -235,8 +243,8 @@
         const piece = board[r][c];
         if(piece) {
           square.textContent = pieces[piece];
-          square.style.color = (piece === piece.toUpperCase()) ? 'white' : 'black';
-          square.style.textShadow = (piece === piece.toUpperCase()) ? '0 0 3px black' : 'none';
+          square.style.color = (piece === piece.toUpperCase()) ? '#fff' : '#000';
+          square.style.textShadow = (piece === piece.toUpperCase()) ? '0 0 3px #000' : 'none';
         }
 
         if(inCheck && kingPos && kingPos[0] === r && kingPos[1] === c) {
@@ -338,7 +346,6 @@
   function onSquareClick(row, col) {
     if(gameOver) return;
 
-    // Multijogador permite o jogador de vez clicar
     const piece = board[row][col];
     if(selected) {
       const moves = getValidMoves(selected[0], selected[1]);
@@ -352,7 +359,7 @@
         if(mode === 'ai') {
           turn = turn === 'white' ? 'black' : 'white';
           if(turn === 'black') {
-            setTimeout(computerMove, 500);
+            setTimeout(computerMove, 600);
           }
         } else if(mode === 'friend') {
           turn = turn === 'white' ? 'black' : 'white';
@@ -428,4 +435,39 @@
   function makeMove(fromR, fromC, toR, toC) {
     const captured = board[toR][toC];
     if(captured) {
-      if(captured === captured.to
+      if(captured === captured.toUpperCase()) capturedWhite.push(captured);
+      else capturedBlack.push(captured);
+    }
+    board[toR][toC] = board[fromR][fromC];
+    board[fromR][fromC] = '';
+
+    // Verificar promoção do peão
+    if(board[toR][toC].toLowerCase() === 'p') {
+      if((toR === 0 && board[toR][toC] === 'P') || (toR === 7 && board[toR][toC] === 'p')) {
+        board[toR][toC] = board[toR][toC] === 'P' ? 'Q' : 'q';
+      }
+    }
+
+    // Verifica xeque-mate ou empate
+    if(isCheckmate(turn === 'white' ? 'black' : 'white')) {
+      alert(`Xeque-mate! ${turn === 'white' ? 'Brancas' : 'Pretas'} venceram!`);
+      gameOver = true;
+    } else if(isStalemate(turn === 'white' ? 'black' : 'white')) {
+      alert('Empate por afogamento!');
+      gameOver = true;
+    }
+  }
+
+  function isCheckmate(color) {
+    if(!isInCheck(color)) return false;
+
+    for(let r=0; r<8; r++) {
+      for(let c=0; c<8; c++) {
+        if(board[r][c] && isPieceColor(board[r][c], color)) {
+          const moves = getValidMoves(r, c);
+          if(moves.length > 0) return false;
+        }
+      }
+    }
+    return true;
+  }
