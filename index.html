@@ -1,17 +1,261 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <title>Xadrez Funcional</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="script.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jogo de Xadrez</title>
+<style>
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    background: #f0f0f0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  #chessboard {
+    display: grid;
+    grid-template-columns: repeat(8, 60px);
+    grid-template-rows: repeat(8, 60px);
+    border: 2px solid #333;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  }
+  .square {
+    width: 60px;
+    height: 60px;
+    position: relative;
+    font-size: 42px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  .light {
+    background-color: #eeeed2;
+  }
+  .dark {
+    background-color: #769656;
+  }
+  .highlight {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    background-color: rgba(46, 204, 113, 0.8);
+    border-radius: 50%;
+    bottom: 8px;
+    right: 8px;
+    pointer-events: none;
+  }
+  .selected {
+    outline: 3px solid #2ecc71;
+  }
+</style>
 </head>
 <body>
-    <h1>Xadrez Simples (2 Jogadores)</h1>
-    <div id="status-message">Vez das Brancas.</div>
-    <div id="board">
-        </div>
-    <p class="note">Clique em uma peça e depois em uma casa válida (bolinha verde) para jogar.</p>
-    <script src="script.js"></script>
+
+<div id="chessboard"></div>
+
+<script>
+  // Unicode peças de xadrez
+  // Peças brancas: ♔♕♖♗♘♙
+  // Peças pretas: ♚♛♜♝♞♟
+  const pieces = {
+    'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
+    'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙'
+  };
+
+  // Tabuleiro inicial - notação simples
+  let board = [
+    ['r','n','b','q','k','b','n','r'],
+    ['p','p','p','p','p','p','p','p'],
+    ['','','','','','','',''],
+    ['','','','','','','',''],
+    ['','','','','','','',''],
+    ['','','','','','','',''],
+    ['P','P','P','P','P','P','P','P'],
+    ['R','N','B','Q','K','B','N','R']
+  ];
+
+  const boardDiv = document.getElementById('chessboard');
+
+  let selected = null;  // posição da peça selecionada [row,col]
+  let turn = 'white';  // vez do jogador ('white' ou 'black')
+
+  function createBoard() {
+    boardDiv.innerHTML = '';
+    for(let r=0; r<8; r++) {
+      for(let c=0; c<8; c++) {
+        const square = document.createElement('div');
+        square.classList.add('square');
+        square.classList.add((r+c)%2 === 0 ? 'light' : 'dark');
+        square.dataset.row = r;
+        square.dataset.col = c;
+
+        const piece = board[r][c];
+        if(piece) {
+          square.textContent = pieces[piece];
+          square.style.color = (piece === piece.toUpperCase()) ? 'white' : 'black';
+          square.style.textShadow = (piece === piece.toUpperCase()) ? '0 0 3px black' : 'none';
+        }
+        square.addEventListener('click', () => onSquareClick(r,c));
+        boardDiv.appendChild(square);
+      }
+    }
+  }
+
+  function onSquareClick(row, col) {
+    const piece = board[row][col];
+    if(selected) {
+      // Se clicar num movimento válido, move peça
+      const moves = getValidMoves(selected[0], selected[1]);
+      if(moves.some(m => m[0] === row && m[1] === col)) {
+        movePiece(selected[0], selected[1], row, col);
+        selected = null;
+        turn = turn === 'white' ? 'black' : 'white';
+        createBoard();
+      } else {
+        // selecionar outra peça do jogador
+        if(piece && isPieceTurn(piece)) {
+          selected = [row,col];
+          createBoard();
+          highlightMoves(selected[0], selected[1]);
+        } else {
+          selected = null;
+          createBoard();
+        }
+      }
+    } else {
+      // Selecionar peça do jogador atual
+      if(piece && isPieceTurn(piece)) {
+        selected = [row,col];
+        createBoard();
+        highlightMoves(row,col);
+      }
+    }
+  }
+
+  function isPieceTurn(piece) {
+    if(turn === 'white') return piece === piece.toUpperCase();
+    else return piece === piece.toLowerCase();
+  }
+
+  function highlightMoves(row, col) {
+    const squares = boardDiv.children;
+    const moves = getValidMoves(row, col);
+
+    // Selecionar o quadrado da peça
+    const indexSelected = row * 8 + col;
+    squares[indexSelected].classList.add('selected');
+
+    moves.forEach(move => {
+      const idx = move[0]*8 + move[1];
+      const highlight = document.createElement('div');
+      highlight.classList.add('highlight');
+      squares[idx].appendChild(highlight);
+    });
+  }
+
+  // Função simples para obter movimentos válidos (apenas movimentos básicos, sem xeque ou regras complexas)
+  function getValidMoves(row, col) {
+    const piece = board[row][col];
+    if(!piece) return [];
+
+    const isWhite = piece === piece.toUpperCase();
+    const moves = [];
+
+    // Movimentos por tipo de peça (simplificado)
+    switch(piece.toLowerCase()) {
+      case 'p': // peão
+        const dir = isWhite ? -1 : 1;
+        // um passo à frente
+        if(inBounds(row + dir, col) && !board[row + dir][col]) {
+          moves.push([row + dir, col]);
+          // se na linha inicial, pode andar 2 casas
+          if((isWhite && row === 6 || !isWhite && row === 1) && !board[row + 2*dir][col]) {
+            moves.push([row + 2*dir, col]);
+          }
+        }
+        // captura diagonal esquerda
+        if(inBounds(row + dir, col -1) && board[row + dir][col -1] && isOpponentPiece(board[row + dir][col -1], isWhite)) {
+          moves.push([row + dir, col -1]);
+        }
+        // captura diagonal direita
+        if(inBounds(row + dir, col +1) && board[row + dir][col +1] && isOpponentPiece(board[row + dir][col +1], isWhite)) {
+          moves.push([row + dir, col +1]);
+        }
+        break;
+      case 'r': // torre
+        moves.push(...getLinearMoves(row, col, isWhite, [[1,0],[-1,0],[0,1],[0,-1]]));
+        break;
+      case 'n': // cavalo
+        const knightMoves = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+        knightMoves.forEach(([dr,dc]) => {
+          const nr = row+dr, nc = col+dc;
+          if(inBounds(nr,nc)) {
+            if(!board[nr][nc] || isOpponentPiece(board[nr][nc], isWhite)) {
+              moves.push([nr,nc]);
+            }
+          }
+        });
+        break;
+      case 'b': // bispo
+        moves.push(...getLinearMoves(row, col, isWhite, [[1,1],[1,-1],[-1,1],[-1,-1]]));
+        break;
+      case 'q': // rainha
+        moves.push(...getLinearMoves(row, col, isWhite, [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]));
+        break;
+      case 'k': // rei
+        const kingMoves = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+        kingMoves.forEach(([dr,dc]) => {
+          const nr = row+dr, nc = col+dc;
+          if(inBounds(nr,nc)) {
+            if(!board[nr][nc] || isOpponentPiece(board[nr][nc], isWhite)) {
+              moves.push([nr,nc]);
+            }
+          }
+        });
+        break;
+    }
+
+    return moves;
+  }
+
+  function getLinearMoves(row, col, isWhite, directions) {
+    const moves = [];
+    for(const [dr,dc] of directions) {
+      let nr = row + dr;
+      let nc = col + dc;
+      while(inBounds(nr,nc)) {
+        if(!board[nr][nc]) {
+          moves.push([nr,nc]);
+        } else {
+          if(isOpponentPiece(board[nr][nc], isWhite)) {
+            moves.push([nr,nc]);
+          }
+          break;
+        }
+        nr += dr;
+        nc += dc;
+      }
+    }
+    return moves;
+  }
+
+  function isOpponentPiece(piece, isWhite) {
+    return isWhite ? piece === piece.toLowerCase() : piece === piece.toUpperCase();
+  }
+
+  function inBounds(r,c) {
+    return r>=0 && r<8 && c>=0 && c<8;
+  }
+
+  function movePiece(fromR, fromC, toR, toC) {
+    board[toR][toC] = board[fromR][fromC];
+    board[fromR][fromC] = '';
+  }
+
+  createBoard();
+</script>
+
 </body>
 </html>
